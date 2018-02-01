@@ -150,23 +150,23 @@ const char* cstr[] = {"fill", "byte", "word", "text", "table", "func", "struct",
  "timel", "vect", "args", "subr", "xcode", "code", "cscan", "opts", "rbase", "symbol", "banks", "order"};
 
 
-// first number not used any more !!
+// first number not used any more !! 
 
 DIRS dirs[] = {
 {0 , set_data,  pp_dft,   0,  2, 1, 0, 0, 1, ""},               // fill - default -> MUST be zero ix
-{1 , set_data,  pp_wdbt,  2,  2, 1, 0, 3, 1, "%[PSXV]%n" },          // pfw, signed, hex, divisor
-{2 , set_data,  pp_wdbt,  2,  2, 1, 0, 1, 1, "%[LPSXV]%n" },         // + int can be ovr by byte !
+{1 , set_data,  pp_wdbt,  2,  2, 1, 0, 3, 1, "%[:PSXV]%n" },          // pfw, signed, hex, divisor
+{2 , set_data,  pp_wdbt,  2,  2, 1, 0, 1, 1, "%[:LPSXV]%n" },         // + int can be ovr by byte !
 {3 , set_data,  pp_text,  0,  2, 1, 0, 7, 1, ""  } ,
 
-{4 , set_data,  pp_stct,  2,  2, 1, 1, 7, 0, "%[OPSVWXY]%n" },
-{5 , set_data,  pp_stct,  3,  2, 1, 1, 7, 0, "%[LPSVWXY]%n" } ,
-{6 , set_data,  pp_stct,  15, 2, 1, 1, 7, 0, "%[DLMNOPRSVWXYQ]%n" },
+{4 , set_data,  pp_stct,  2,  2, 1, 1, 7, 0, "%[:OPSVWXY]%n" },
+{5 , set_data,  pp_stct,  3,  2, 1, 1, 7, 0, "%[:LPSVWXY]%n" } ,
+{6 , set_data,  pp_stct,  15, 2, 1, 1, 7, 0, "%[:|DLMNOPRSVWXYQ]%n" },
 
 {7  , set_time, pp_timer, 2,  2, 1, 1, 7, 0, "%[YWNT]%n" },          // timer list
 {8  , set_vect, pp_vect,  2,  2, 1, 1, 7, 1, "%[DQ]%n"} ,            // bank, quit byte (always hex)
-{9  , set_args, pp_dft,   15, 2, 1, 0, 0, 0, "%[DELNOPSWXY]%n" },    // call address, not subr
+{9  , set_args, pp_dft,   15, 2, 1, 0, 0, 0, "%[:DELNOPSWXY]%n" },    // call address, not subr
 
-{10 , set_subr, pp_dft,   15, 1, 1, 1, 0, 0, "%[DEFLNOPSWXY]%n" },
+{10 , set_subr, pp_dft,   15, 1, 1, 1, 0, 0, "%[:DEFLNOPSWXY]%n" },
 {11 , set_cdih, pp_dft,   0,  2, 1, 0, 0, 1, ""  } ,
 {12 , set_code, pp_code,  0,  2, 1, 0, 7, 1, ""  } ,             // may be more than 7 for ovrdes
 
@@ -174,7 +174,7 @@ DIRS dirs[] = {
 {14 , set_opts, pp_dft,   2,  0, 0, 0, 0, 0, "%[CDHLMNPS]%n" },       // add more here....
 {15 , set_rbas, pp_dft,   0,  2, 2, 0, 0, 0, ""   },
 
-{16 , set_sym,  pp_dft,   2,  1, 1, 1, 0, 0, "%[FTW]%n"    },        // flags,bit,write // flags auto on bit ?
+{16 , set_sym,  pp_dft,   2,  1, 1, 1, 0, 0, "%[:FTW]%n"    },        // flags,bit,write // flags auto on bit ?
 
 {17 , set_bnk,  pp_dft,   0,  4, 2, 0, 0, 0, "" },              //  file map/offsets
 {18 , set_ordr, pp_dft,   2,  4, 0, 0, 0, 0, "" }
@@ -10193,6 +10193,7 @@ int parse_com(char *flbuf)
 
 // ans = sscanf(flbuf, "[\n\r#]");      // alternate method ?
 // if (ans)  flbuf[end] = '\0';
+
   e = flbuf + maxlen;
 
   t = strchr(flbuf, '\n');            // check for end of line
@@ -10204,14 +10205,11 @@ int parse_com(char *flbuf)
   t = strchr(flbuf, '#');            // stop at comment
   if (t && t < e) e = t;                  // remove any comment
 
-  maxlen = e - flbuf;           // ??
-
- // maxlen = strlen(flbuf);                // reset string length
- // end = flbuf+maxlen;                    // end marker
-
+  maxlen = e - flbuf;
+  
   if (maxlen <=0) return 0;                // null line;
 
-  cmnd.posn = 0;                             //flbuf;
+  cmnd.posn = 0;
 
   cmnd.posn = readpunc(cmnd.posn,maxlen);
   ans = sscanf (flbuf, "%7s%n", rdst, &rlen);    // n is no of chars read, to %n
@@ -10255,15 +10253,15 @@ int parse_com(char *flbuf)
 
   cmnd.posn = readpunc(cmnd.posn, maxlen);
 
-  if (cmnd.posn < maxlen && crdir->namee && flbuf[cmnd.posn] != ':')
+  if (cmnd.posn < maxlen && crdir->namee && flbuf[cmnd.posn] == '\"')
    {
-    if (flbuf[cmnd.posn] == '\"') cmnd.posn++;
-
+    cmnd.posn++;   // skip quote
     ans = sscanf(flbuf+cmnd.posn," %32s%n", cmnd.symname,&rlen);     //max 32 char names.
     if (ans) cmnd.posn += rlen;
     
     t = strchr(cmnd.symname, '\"');                 // drop trailing quote from syname
     if (t) *t = 0;
+	else return do_error("Missing close quote", cmnd.posn);
    }
 
   // now read levels
@@ -10276,22 +10274,8 @@ int parse_com(char *flbuf)
    {
     cmnd.posn = readpunc(cmnd.posn,maxlen);
     if (cmnd.posn >= maxlen) break;         // safety
-    ans = sscanf(flbuf+cmnd.posn,"%[:|] %n", rdst,&rlen);      // colon   - this reads trailing space too !!
-    if (*rdst == '|') split = 1;
-
-    if (ans < 0) break;                    // ans < 0 is end of string ?
- 
- if (ans > 0)              // if rdst == ':' too .....
-    {
-     cmnd.posn += rlen;
-     // colon found - add a new CADT struct at end of chain
-     c = add_cadt(&(cmnd.add));
-     cmnd.levels++;
-    }                   // end add CADT
 
   // now read option chars and anything else.....
-
-  //ans = 1;
 
   while (cmnd.posn < maxlen)                       //ans > 0)
    {
@@ -10305,9 +10289,11 @@ int parse_com(char *flbuf)
       return do_error("Illegal Option", cmnd.posn);        // illegal option char (4)
      }
     else 
-  //  if (ans > 0)
-      {
-       cmnd.posn += rlen;
+     {
+       t = flbuf+cmnd.posn;	  
+       if (!c && *t != ':') return do_error("Missing Colon", cmnd.posn);
+		  
+	   cmnd.posn += 1;       // Not rlen, only single char here
     
        if (cmnd.posn >= maxlen) break;         // safety
 
@@ -10333,7 +10319,21 @@ int parse_com(char *flbuf)
 
            // case 'C' :
            //    break;
-
+		   
+           case '|' :
+		   
+              if (c) split = 1;
+              // fall though to colon		   
+		   
+		   case ':' :
+ 
+              // colon add a new CADT struct (= level) at end of chain
+              c = add_cadt(&(cmnd.add));
+	          cmnd.levels++;
+              break;
+			  
+   
+			  
            case 'D' :
 
              // read 1 hex value
@@ -10452,6 +10452,8 @@ int parse_com(char *flbuf)
      break;
 
      // Z
+  if (split) cmnd.size2 += dsize(c);
+  else       cmnd.size1 += dsize(c);        // keep total size for each level
 
   default:
      return do_error("Illegal Option", cmnd.posn);
