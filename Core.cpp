@@ -8759,7 +8759,7 @@ int pp_code (int ofst, int ix)
 
      find_tjump (s.nextaddr);   // nextaddr ? for close bracket(s)
 
-
+/*
   {
     OPS *s;                            // debug
 
