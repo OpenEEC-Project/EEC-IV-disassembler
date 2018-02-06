@@ -149,8 +149,6 @@ uint foff   : 1 ;    // fixed offset (using addr)
 uint nodis  : 1 ;    // don't print this entry in commands (but active)
 uint disb   : 1 ;    // this entry disabled, skip over print (used for grnf)
 uint pget   : 1 ;    // this is a par getter (for encdx to find later !)
-uint split  : 1 ;    // break printout with newline
-
 } CADT;
 
 
@@ -284,13 +282,13 @@ CADT *adnl;                 // additional cmd structs (chained)
 int  start;                // start offset
 int  end;                  // end offset
 
-uint size : 8;              // CPARS and struct (subr or data) sizes (use for word/byte ?)
+char size1 ;              // CPARS and struct (subr or data) sizes (use for word/byte ?)
+char size2 ;              // set if split printout selected
 
 uint fcom : 5;            // command index  - only 13 commands so far...
 uint term : 2;            // data command has terminating byte(s)
 uint cmd  : 1;            // added by user command, guess otherwise
-uint split : 1;           // split printout
- //uint chk  : 1;         // do ptn analysis from here (immediate or absolute address)
+//uint chk  : 1;            // do ptn analysis from here (immediate or absolute address)
 } LBK ;
 
 
@@ -424,10 +422,9 @@ typedef struct         // command holder for cmd parsing
   uint  fcom : 5 ;
   uint  term : 1;         // terminating byte
   uint  levels : 8;       // additonal levels (after the colon)
-  uint  split : 1;
   int   posn;             // char posn (for errors)
-  int   size;            // command size (up to newline if a '|' char)
-//  int   size2;            // command size after a split (=newline) level
+  int   size1;            // command size (up to newline if a '|' char)
+  int   size2;            // command size after a split (=newline) level
   char  symname[33];      // max 32 chars ?
 
  } CPS;

@@ -162,7 +162,7 @@ DIRS dirs[] = {
 {5 , set_data,  pp_stct,  3,  2, 1, 1, 7, 0, "%[:LPSVWXY]%n" } ,
 {6 , set_data,  pp_stct,  15, 2, 1, 1, 7, 0, "%[:|DLMNOPRSVWXYQ]%n" },
 
-{7  , set_time, pp_timer, 2,  2, 1, 1, 7, 0, "%[:YWNT]%n" },          // timer list
+{7  , set_time, pp_timer, 2,  2, 1, 1, 7, 0, "%[YWNT]%n" },          // timer list
 {8  , set_vect, pp_vect,  2,  2, 1, 1, 7, 1, "%[:DQ]%n"} ,            // bank, quit byte (always hex)
 {9  , set_args, pp_dft,   15, 2, 1, 0, 0, 0, "%[:DELNOPSWXY]%n" },    // call address, not subr
 
@@ -171,7 +171,7 @@ DIRS dirs[] = {
 {12 , set_code, pp_code,  0,  2, 1, 0, 7, 1, ""  } ,             // may be more than 7 for ovrdes
 
 {13 , set_scan, pp_dft ,  0,  1, 1, 0, 0, 0, ""   },
-{14 , set_opts, pp_dft,   2,  0, 0, 0, 0, 0, "%[:CDHLMNPS]%n" },       // add more here....
+{14 , set_opts, pp_dft,   2,  0, 0, 0, 0, 0, "%[CDHLMNPS]%n" },       // add more here....
 {15 , set_rbas, pp_dft,   0,  2, 2, 0, 0, 0, ""   },
 
 {16 , set_sym,  pp_dft,   2,  1, 1, 1, 0, 0, "%[:FTW]%n"    },        // flags,bit,write // flags auto on bit ?
@@ -2530,7 +2530,7 @@ levs = 0;
 
 while (s && levs < MAXLEVS)
   {
-   if (s->split) wnprt("| "); else wnprt(": ");
+   wnprt(" :");
    if (s->ssize > 4) wnprt("S ");
    flg = s->ssize & 3;
 
@@ -3989,7 +3989,7 @@ void scan_gaps(void)
 
 
 
-int decode_addr(CADT *a, int ofst)
+int decode_addr(CADT *a, int ofst)                 //, RBT **x)
   {
   int rb,val,off;
   RBT *r;
@@ -4000,7 +4000,7 @@ int decode_addr(CADT *a, int ofst)
   if (a->foff)
     {            // fixed offset (as address)
      val += a->addr;
-     val &= 0xFFFF;         // bank ?
+     val &= 0xFFFF;
      return val;
     }
 
@@ -4042,11 +4042,6 @@ int decode_addr(CADT *a, int ofst)
     else
     WNPRTN("No rbase for address decode! %x (at %x)", a->addr+rb, ofst);
    }
-   
-  if (a->vect)
-  {    // pointer to subr - may do this elsewhere too... 
-   val |= (ofst & 0xf0000);   // add bank from start addr....not necessarily right
-  } 
   return val;
 
 }
@@ -6778,10 +6773,14 @@ signature pattern detection
 CADT *pp_lev (int ofst, CADT *a, int pad, int max)
 {
 
- int pfw, val, end, i, lev;
+ int pfw, val, end, i, lev; //, tot;
  float fval;
  SYT* sym;
 
+
+
+// bank = ofst & 0xf0000;
+// tot = 0;
  if (max)
    end = ofst + max;
  else
@@ -6790,7 +6789,7 @@ CADT *pp_lev (int ofst, CADT *a, int pad, int max)
  lev = 0;
  while (a && lev < MAXLEVS)
   {
-   if (ofst >= end) break;                 // safety - force exit   
+   if (ofst > end) break;                 // safety - force exit   
    if (a->disb) { a = a->next; continue; } // skip this entry
 
    for (i = 0; i < a->cnt; i++)      // count within each level
@@ -6806,7 +6805,7 @@ CADT *pp_lev (int ofst, CADT *a, int pad, int max)
         if (a->divd)   pfw+=3;                   // 3 extra for ".00"
        }
 
-     val = decode_addr(a, ofst);               // val with decode if nec.  and sign
+     val = decode_addr(a, ofst);       //, 0);               // val with decode if nec.  and sign
      if (a->name)
        {
          sym = get_sym(0,val,-1);    // syname AFTER any decodes - was xval
@@ -6927,60 +6926,54 @@ int pp_wdbt (int ofst, int ix)          //LBK *x)
   return ofst+casz[a->ssize];
 }
 
-int pp_stct (int ofst, int ix)
+int pp_stct (int ofst, int ix)               //LBK *x)
 {
- int size, indent, end;
+ int size1, size2, indent;
  LBK *x;
- CADT *a, *c;
+ CADT *a;
 
  x = (LBK*) cmdch.ptrs[ix]; 
- a = x->adnl;
-
- // must safety check size versus end !!
-
- if (ofst+x->size > x->end) size = x->end-ofst+1;        // overlap !!   
- else size = x->size;
  
- if (!x->split)
-  {
-   // single line printout	
-   indent = size*3+8;
-   pp_hdr (ofst, cstr[x->fcom],size,indent);
-   pp_lev(ofst,a,1, size);
-   ofst += size;
-   pp_comment (ofst);     
-  } 
- else
- {
-	 // multiline printout, look for split flag(s) - this will 
-	end = ofst + size;
-	indent = 0;
-    while (a && ofst < end)
-	 {
-	  size = 0;
-      c = a; 
-	  while(a)
-	   {
-	    if (size && a->split) break; 
-	    size += dsize(a);
-	    a = a->next;
-	   }
-      if ((size*3+8) > indent) indent = size*3+8;      // temp lashup 
-      pp_hdr (ofst, cstr[x->fcom], size,indent);
-      pp_lev(ofst,c,1,size);
-      ofst += size;
-      pp_comment (ofst);     
-	 }
- }	 
+ //if (cmdch.num-ix > 1)
+ //y = (LBK*) cmdch.ptrs[ix+1];
+ //else y = 0;
+ 
+ indent = x->size1*3+7;
+ if (x->size2 > x->size1) indent = x->size2*3+8;
 
- if (x->term && ofst == x->end)     // terminator byte(s) ?
+ size1 = x->size1;
+// pp_comment (ofst);
+
+ if (ofst+size1 > x->end+1) size1 = x->end-ofst+1;  // overlap !!  
+// size1 is right (pp_hdr)
+
+ pp_hdr (ofst, cstr[x->fcom], size1,indent);
+ a = pp_lev(ofst,x->adnl,1, size1);
+ ofst += size1;
+
+ pp_comment (ofst);                   // new line, so allow for comment
+
+ size2 = x->size2;
+
+ if (x->size2 && ofst+size2 > x->end+1) size2 = x->end-ofst+1;  
+
+ if (size2 > 0) {
+// pp_comment (ofst);
+
+ pp_hdr (ofst, cstr[x->fcom], size2, indent);
+ pp_lev(ofst,a,1, size2);
+ ofst += size2;
+ pp_comment (ofst);
+ }
+
+ if (x->term && ofst == x->end)     // terminator byte(s)
   {
  //  pp_comment (ofst-1);
    pp_hdr (ofst, "byte", x->term, indent);
    pstr("##  terminator");
-   return ofst+x->term;           // only if term byte printed
+ //  pp_comment (ofst+x->term);
   }
-  return ofst;                           //size1+size2+x->term;
+  return ofst+x->term;                           //size1+size2+x->term;
 }
 
 //***********************************
@@ -7132,7 +7125,7 @@ int pp_timer(int ofst, int ix)
 
   sym = 0;
   a = x->adnl;
-  if (!a)  a = add_cadt(&(x->adnl));       // just in case
+  if (!a)  a = add_cadt(&(x->adnl));        //,0);        // just in case
 
 
   xofst = ofst;
@@ -7404,7 +7397,7 @@ int pp_subpars (int ofst, short cnt)
   if (sblk)
      {
      add =  sblk->adnl;      // command overrides proc settings
-     size = sblk->size;
+     size = sblk->size1;
      }
 
    if (!add)
@@ -7982,14 +7975,14 @@ int shl(SBK *s)       // shifts may need more....
 int inc(SBK *s)
  {
 // NOT ssize, but ALWAYS 1 (only autoinc is one or two)
-//  curops[curinst->opl->wop].val++;
+  curops[curinst->opl->wop].val++;
   //curinst->inc = 1;                  // trick as autoinc ?
 	  return 0;
  }
 
 int dec(SBK *s)
  {
- // curops[curinst->opl->wop].val--;
+  curops[curinst->opl->wop].val--;
   	  return 0;
  }
 
@@ -8048,7 +8041,7 @@ WNPRTN("trace back");
                       //a->name  = 1;                    // find symbol names
                  }
                s->nextaddr = j->from + a->cnt;                // and go back to subr?
-               k->size = a->cnt;
+               k->size1 = a->cnt;
                WNPRTN("set resume %x", s->nextaddr);
                return 1;
               } 
@@ -8865,8 +8858,8 @@ void set_adnl(CPS *cmnd, LBK *z)
 
   freecadt(&(z->adnl));            // free any existing CADT, probably redundant ?
 
-  z->size = cmnd->size;
- // z->size2 = cmnd->size2;
+  z->size1 = cmnd->size1;
+  z->size2 = cmnd->size2;
 
   z->adnl = cmnd->add;         // add chain to command blk
   cmnd->add = NULL;             // and drop from cmnd structure
@@ -8890,7 +8883,7 @@ void set_data_vect(LBK *blk)
   {
    ofst = blk->start;
    end =  blk->end;
-   bank = ofst & 0xf0000;
+   bank = ofst &= 0xf0000;
 
    while (ofst < end)
      {
@@ -8920,11 +8913,7 @@ int set_data (CPS *c)
 
   set_adnl(c,blk);
   WNPRTN(0);
-  if (blk) 
-	  {
-       blk->term = c->term;                    // terminating byte flag
-       blk->split = c->split;                  // split printout
-	  } 
+  if (blk) blk->term = c->term;                    // terminating byte ?
   new_sym(2,c->symname,c->p[0], -1);           // +cmd. safe if symname null
   set_data_vect(blk);
   return 0;
@@ -9559,7 +9548,7 @@ ofst += (rows*cols) -1;
        {
         add_nsym(4,d->start);                  // auto table name, can fail
         a = add_cadt(&(blk->adnl)); //,0);    // add at front
-        blk->size = d->p1;                // size for one line ( = cols)
+        blk->size1 = d->p1;                // size for one line ( = cols)
  //       a->addr = d->p2;                   // temp test (+ rows)
         a->cnt = d->p1;
         a->dcm = 1;                       // default to decimal (PDCM)? 1: 0;
@@ -9704,7 +9693,7 @@ n = (DDT*) datch.ptrs[ix+1];  // next cmd
       {                                 // cmd OK, add size etc (2 sets for func)
 
        add_nsym(3,d->start);            // auto func name, can fail
-       blk->size = incr;               // size of one row
+       blk->size1 = incr;               // size of one row
 
        a = add_cadt(&(blk->adnl)); //,0);                       // at front
        if (a) add_cadt(&(blk->adnl)); //,1);                    // at end
@@ -10182,7 +10171,7 @@ int parse_com(char *flbuf)
   // parse (and check) cmnd return error(s) as bit flags;
 
   uint j;
-  int maxlen,rlen,ans;
+  int maxlen,rlen,ans,split;
 
   int v[4];
   float f1;
@@ -10198,6 +10187,7 @@ int parse_com(char *flbuf)
   c = 0;
   
   crdir = NULL;
+  split = 0;                 // marker for newline '|'
   maxlen = strlen(flbuf);    // safety check
 
 
@@ -10293,33 +10283,29 @@ int parse_com(char *flbuf)
     if (cmnd.posn >= maxlen) break;         // safety
      
     ans = sscanf(flbuf+cmnd.posn,crdir->opts, rdst, &rlen);
-    t = flbuf+cmnd.posn;                                            // remember char
-	
+
     if (ans <= 0) 
      {
       return do_error("Illegal Option", cmnd.posn);        // illegal option char (4)
      }
     else 
      {
- 	   cmnd.posn += 1;       // Not rlen, only single char here
+       t = flbuf+cmnd.posn;	  
+       if (!c && *t != ':') return do_error("Missing Colon", cmnd.posn);
+		  
+	   cmnd.posn += 1;       // Not rlen, only single char here
     
-   //    if (cmnd.posn >= maxlen) break;         // safety
+       if (cmnd.posn >= maxlen) break;         // safety
 
        if (!crdir->maxps)
         {
          // this is an options type (no params)
-		 if (rdst[0] >= 'A' && rdst[0] <= 'Z')
-		 {
          j = rdst[0] - 'A';                      // convert letter to bit offset
          cmnd.p[0] |= (1 << j) ;
-		 }
         }
        else
         {
          // switch by command letter
-		 
-		 if (!c && *t != ':') return do_error("Missing Colon", cmnd.posn);
-		 
          switch(rdst[0])
           {
            // case 'A':                    // AD voltage ??
@@ -10335,11 +10321,9 @@ int parse_com(char *flbuf)
            //    break;
 		   
            case '|' :
-		      c = add_cadt(&(cmnd.add));
-	          cmnd.levels++;
-              c->split = 1;                    // mark split printout here
-			  cmnd.split = 1;
-              break;		   
+		   
+              if (c) split = 1;
+              // fall though to colon		   
 		   
 		   case ':' :
  
@@ -10379,131 +10363,131 @@ int parse_com(char *flbuf)
            case 'F' :
              ans = sscanf(flbuf+cmnd.posn, "%5x%n %5x%n %5x%n", v, &rlen, v+1, &rlen, v+2, &rlen);
              if (ans>2) cmnd.posn+=rlen;
-             break;
+ 
+     break;
 
   // G H I J K
 
-           case 'L':                // long int
-             c->ssize &= 4;        // keep sign
-             c->ssize |= 3;
-             break;
+  case 'L':                // long int
+     c->ssize &= 4;        // keep sign
+     c->ssize |= 3;
+     break;
 
  // case 'M':                // mask pair, use esize to decide word or byte
  //    cadd->mask = 1;
  //    break;
 
-           case 'N':
-             c->name = 1;       // Name lookup
-             break;
+  case 'N':
+     c->name = 1;       // Name lookup
+     break;
 
-           case 'O':                // Cols or count
+  case 'O':                // Cols or count
       // 1 decimal value
 
-             ans = sscanf(flbuf+cmnd.posn, "%d%n ", v, &rlen);
-             if (ans>0)
-               {
-                 cmnd.posn+=rlen;
-                 c->cnt = v[0];            // must be positive ?
-               }        // else error
-             break;
+     ans = sscanf(flbuf+cmnd.posn, "%d%n ", v, &rlen);
+          if (ans>0)
+           {
+            cmnd.posn+=rlen;
+            // v1 must be positive
+            c->cnt = v[0];           //cmnd.ans[0];
+     }        // else error
+     break;
 
-           case 'P':               // Print fieldwidth   1 decimal
-             ans = sscanf(flbuf+cmnd.posn, "%5d%n ", v, &rlen);
-             if (ans>0){ cmnd.posn+=rlen;
-             c->pfw = v[0];
-               }           // else error
-              break;
+  case 'P':               // Print fieldwidth   1 decimal
+     ans = sscanf(flbuf+cmnd.posn, "%5d%n ", v, &rlen);
+          if (ans>0){ cmnd.posn+=rlen;
 
-           case 'Q' :              // terminator byte
-             cmnd.term = 1;
-             break;
+     c->pfw = v[0];       //cmnd.ans[0];
+      }           // else error
+     break;
 
-           case 'R':               // indirect pointer to subroutine (= vect)
-             c->ssize = 2;        // safety, lock to WORD
-             c->vect = 1;
-             c->name = 1;         // with name by default
-             break;
+  case 'Q' :              // terminator byte
+     cmnd.term = 1;
+     break;
 
-           case 'S':              // Signed
-             c->ssize |= 4;
-             break;
+  case 'R':               // indirect pointer to subroutine (= vect)
+     c->ssize = 2;        // safety, lock to WORD
+     c->vect = 1;
+     c->name = 1;         // with name by default
+      break;
 
-           case 'T':                 // biT
-               // read one decimal val
-             ans = sscanf(flbuf+cmnd.posn, "%5d%n ", v, &rlen);
-             if (ans > 0) {
-               cmnd.posn+=rlen;
-               c->addr = v[0];
-               }
-             break;
+  case 'S':              // Signed
+     c->ssize |= 4;
+     break;
+
+  case 'T':                 // biT
+      // read one decimal val
+       ans = sscanf(flbuf+cmnd.posn, "%5d%n ", v, &rlen);
+       if (ans > 0) {
+          cmnd.posn+=rlen;
+          c->addr = v[0];
+          }
+     break;
 
      // U
 
-           case 'V':                  // diVisor
-             // read one FLOAT val
-             ans = sscanf(flbuf+cmnd.posn, "%f%n ", &f1, &rlen);       // FLOAT
-             if (ans > 0)
-             {cmnd.posn+=rlen;
-               c->divd = f1;                                       // now go FULL FLOAT
-             }   // else error
-             break;
+  case 'V':                  // diVisor
+     // read one FLOAT val
+     ans = sscanf(flbuf+cmnd.posn, "%f%n ", &f1, &rlen);       // FLOAT ??
+     if (ans > 0)
+       {cmnd.posn+=rlen;
+        c->divd = f1;      //cmnd.ans[0];   // now go FULL FLOAT
+      }
+    // if (!wn[0].dp) cadd->divisor *= 100;
+   //  cadd->dp = 1;                 // CHECK !!
+     break;
 
-           case 'W':                 // Word   - or write for syms ?     /
-             c->ssize &= 4;        // keep sign
-             c->ssize |= 2;
-             break;
+  case 'W':                 // Word   - or write for syms ?     /
+     c->ssize &= 4;        // keep sign
+     c->ssize |= 2;
+     break;
 
-           case 'X':                 // Print in decimal /
-             c->dcm = 1;
-             break;
+  case 'X':                 // Print in decimal /
+     c->dcm = 1;
+     break;
 
-           case 'Y':                   // bYte/
-             c->ssize &= 4;           // keep sign, but ditch rest
-             c->ssize |= 1;
-             break;
+  case 'Y':                   // bYte/
+     c->ssize &= 4;           // keep sign, but ditch rest
+     c->ssize |= 1;
+     break;
 
-         // Z
- 
-           default:
-              return do_error("Illegal Option", cmnd.posn);
+     // Z
+  if (split) cmnd.size2 += dsize(c);
+  else       cmnd.size1 += dsize(c);        // keep total size for each level
 
-          }          // end switch
-        }        // end else
+  default:
+     return do_error("Illegal Option", cmnd.posn);
+
+    }          // end switch
+  }        // end else
 
   //    end read option
 
-    }                       //  end inner while ans
-
+ // if (posn >= end) break;         // safety
+  }                       //  end inner while ans
   }  // end if
 
-if (cmnd.fcom >= C_TABLE && cmnd.fcom <= C_FUNC) c->dcm = 1;  // decimal default
+// if !error
+  if (split) cmnd.size2 += dsize(c);
+  else       cmnd.size1 += dsize(c);        // keep total size for each level
+  if (cmnd.fcom >= C_TABLE && cmnd.fcom <= C_FUNC) c->dcm = 1;  // decimal default
 
- }     // end of while try to read new colon
+  }     // end while, try to read new colon
+ // }    // exit cmnd read
 
 
-  c = cmnd.add;
 
-  while(c)
-   {
-    cmnd.size += dsize(c);   // set final size
-    c = c->next;
-   }
-
-  c = cmnd.add;
-
-   if (cmnd.fcom == C_FUNC &&  cmnd.levels  < 2)    // func must always have 2 levels
+   if (cmnd.fcom == C_FUNC &&  cmnd.levels  < 2)
    { c->next = (CADT *) mem (0,0,sizeof(CADT));
      *(c->next) = *c;        // copy entry
      c->next->next = NULL;
      cmnd.levels ++;
-     cmnd.size *= 2;             //csize
+     cmnd.size1 *= 2;             //csize
    }
 
 
   }
-  
   // should check nothing left ....
-
 dirs[cmnd.fcom].setz (&cmnd);
 
 // WNPRTN("%s - OK e=%d", flbuf, error);

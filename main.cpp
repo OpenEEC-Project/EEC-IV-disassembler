@@ -110,14 +110,14 @@ int main (int argc, const char **argv)
          case 'c' :
          case 'C' :
           pth[1] = (char *) argv[go+1];              // path of config file
-  //        printf ("config R dir = %s\n", pth[1]);
+          printf ("config R dir = %s\n", pth[1]);
           go++;
           break;
           
          case 'w' :
          case 'W' :
           pth[2] = (char *) argv[go+1];              // path of config file
-   //       printf ("config W dir = %s\n", pth[2]);
+          printf ("config W dir = %s\n", pth[2]);
           go++;
           break; 
           
@@ -154,7 +154,7 @@ int main (int argc, const char **argv)
    //  printf (" | ");
     }
 
- // printf("FN=%s\n",fn);
+  printf("FN=%s\n",fn);
   // get_args here
 
   // save argv num of one after -c and then use in get_config
