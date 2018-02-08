@@ -9291,9 +9291,10 @@ void verify_chk (void)
   newl(1);
   pstr ("########################################################################");
   newl(1);
+  pstr("#\n#  Disassembled by SAD V3.02.1\n");
   pstr("#\n#  Disassembly listing of binary '%s' ",fldata.bare); 
   if (P8065) pstr("(8065, %d banks)",numbanks+1 ); else pstr("(8061, 1 bank)");
-  pstr("\n#\n#  See '%s%s' for warnings, command list and other info\n#\n", fldata.bare, fd[2]);
+  pstr("\n#\n#  See '%s%s' for warnings, command list and other info\n#", fldata.bare, fd[2]);
   pstr ("########################################################################");
   newl(2);
 
@@ -11261,6 +11262,7 @@ short dissas (char *fstr)         // filedata added
      return fldata.error;
     }
 
+  wnprtn("\n\n --- Disassembled BY SAD V3.02.1");
   wnprtn("\n\n ------------- START Disassembly");
   wnprtn(0);
    
