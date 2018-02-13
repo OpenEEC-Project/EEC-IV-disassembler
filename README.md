@@ -17,5 +17,5 @@ even some temporary cryptic ones (like "ZZ")  which are embedded to make an easy
 ***
 3.02
 
-Fixed 3 bugs in data struct printout.
+Fixed 3 bugs in data struct printout.  
 Fixed bug in parse_command which can cause crash.
